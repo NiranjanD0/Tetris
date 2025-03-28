@@ -1,44 +1,37 @@
-# Tetris Game in C++ (Windows API) 🕹️💥
+# Tetris Console Game 🎮
 
-This is a simple **Tetris game** implemented using **C++ and Windows API**. It features block movement, rotation, line clearing, and game-over detection.
+A simple Tetris game built using C++ that runs in the console. Blocks fall, and you must rotate and position them to clear lines and score points! 🏆
 
----
+## Features ✨
+- Classic Tetris gameplay 🎲
+- Smooth movement with arrow keys ⬅️⬇️➡️
+- Rotations with the Up Arrow 🔄
+- Score tracking 📊
+- Restart (`R`) or Quit (`Q`) options after Game Over 🎮
+- Hidden cursor for a cleaner UI ✨
 
-## 📌 Features
-- 🎮 **Keyboard Controls** for moving and rotating blocks
-- 🧱 **Different Tetromino Shapes**
-- 🔄 **Block Rotation**
-- 📏 **Boundary and Collision Handling**
-- 🚀 **Line Clearing Mechanics (satisfaction guaranteed)**
-- 🎨 **Graphical Rendering with Bitmaps**
+## Controls 🎮
+- ⬅️ Left Arrow: Move piece left
+- ➡️ Right Arrow: Move piece right
+- ⬇️ Down Arrow: Move piece down faster
+- 🔼 Up Arrow: Rotate the piece
+- `R`: Restart the game after Game Over 🔁
+- `Q`: Quit the game ❌
 
----
-
-## 🛠️ How to Build & Run
-
-### **🔹 Using MinGW (g++)**
-1. Open a terminal and navigate to the project folder.
-2. Run the following commands:
+## How to Compile & Run 🚀
+### Windows 🖥️
+1. Install `g++` (MinGW) if not installed.
+2. Open a terminal in the project folder.
+3. Compile using:
    ```sh
-    windres -i block.rc -o block.o
-    g++ -mwindows game.cpp block.o -o game.exe
+   g++ -o tetris main.cpp -std=c++11
    ```
-3. Run the game:
+4. Run the game:
    ```sh
-    ./tetris.exe
-    ```
----
+   tetris.exe
+   ```
+## Notes 📄
+- This game only works on **Windows** because it uses `windows.h` and `_getch()`.
+- The game might flicker a bit due to the console update method.
 
-## 🎮 Controls
-| Key | Action |
-|-|-|
-| ⬅️ Left Arrow  | Move block left |
-| ➡️ Right Arrow | Move block right |
-| ⬆️ Up Arrow   | Rotate block |
-| ⬇️ Down Arrow | Drop block faster (because patience is overrated) |
----
-
-## 📜 License
-This project is open-source. Feel free to modify and improve it!
-
----
+Hope you like this game! Happy coding! 🚀

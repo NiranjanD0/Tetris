@@ -1,300 +1,192 @@
+#include <iostream>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <conio.h>
 #include <windows.h>
 
-HINSTANCE hInstance;
-HWND hMainWindow;
+using namespace std;
 
-HDC hMemDC, hBlockDC;
-HBITMAP hMemPrev, hBlockPrev;
+const int WIDTH = 10;
+const int HEIGHT = 20;
 
-int board[12][25];
+void hideCursor() {
+    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_CURSOR_INFO info;
+    info.dwSize = 100;
+    info.bVisible = FALSE;
+    SetConsoleCursorInfo(consoleHandle, &info);
+}
 
-typedef struct _TAG_POSITION {
-    int x;
-    int y;
-} POSITION;
+class Tetromino {
+public:
+    vector<vector<int>> shape;
+    char symbol;
+    int color;
 
-typedef struct _TAG_BLOCK {
-    int rotate;
-    POSITION p[3];
-} BLOCK;
-
-BLOCK block[8] = {
-    {1, {{0,  0},{0, 0}, {0 ,0}}},  // null
-    {2, {{0, -1},{0, 1}, {0 ,2}}},  // tetris
-    {4, {{0, -1},{0, 1}, {1 ,1}}},  // L1
-    {4, {{0, -1},{0, 1}, {-1,1}}},  // L2
-    {2, {{0, -1},{1, 0}, {1 ,1}}},  // key1
-    {2, {{0, -1},{-1,0}, {-1,1}}},  // key2
-    {1, {{0,  1},{1, 0}, {1 ,1}}},  // square
-    {4, {{0, -1},{1, 0}, {-1 ,0}}},  // T
+    Tetromino() : shape({{0}}), symbol(' '), color(15) {}
+    Tetromino(vector<vector<int>> s, char sym, int col) : shape(s), symbol(sym), color(col) {}
 };
 
-typedef struct _TAG_STATUS {
-    int x;
-    int y;
-    int type;
-    int rotate;
-} STATUS;
+class Game {
+private:
+    vector<vector<int>> board;
+    Tetromino currentPiece;
+    int pieceX, pieceY;
+    int score;
+    bool gameOver;
+    HANDLE hConsole;
 
-STATUS current;
+    void spawnPiece() {
+        static vector<Tetromino> pieces = {
+            Tetromino({{1}, {1}, {1}, {1}}, 'I', 11),
+            Tetromino({{1,1,1}, {0,1,0}}, 'T', 13),
+            Tetromino({{1,0,0}, {1,0,0}, {1,1,0}}, 'L', 9),
+            Tetromino({{0,0,1}, {0,0,1}, {0,1,1}}, 'J', 12),
+            Tetromino({{1,1}, {1,1}}, 'O', 14),
+            Tetromino({{1,1,0}, {0,1,1}}, 'S', 10),
+            Tetromino({{0,1,1}, {1,1,0}}, 'Z', 13)
+        };
 
-int random(int max) {
-    return (int)(rand() / (RAND_MAX + 1.0) * max);
-}
+        currentPiece = pieces[rand() % pieces.size()];
+        pieceX = WIDTH / 2 - currentPiece.shape[0].size() / 2;
+        pieceY = 0;
 
-bool putBlock(STATUS s, bool action = false) {
-    if(board[s.x][s.y] != 0) {
-        return false;
-    }
-
-
-    if(action) {
-        board[s.x][s.y] = s.type;
-    }
-
-
-    for(int i = 0; i < 3; i++) {
-        int dx = block[s.type].p[i].x;
-        int dy = block[s.type].p[i].y;
-        int r = s.rotate % block[s.type].rotate;
-        for(int j = 0; j < r; j++) {
-            int nx = dx, ny = dy;
-            dx = ny; dy = -nx;
-        }
-        if(board[s.x + dx][s.y + dy] != 0) {
-            return false;
-        }
-        if(action) {
-            board[s.x + dx][s.y + dy] = s.type;
+        if (!isValidMove(0, 0)) {
+            gameOver = true;
         }
     }
-    if(!action) {
-        putBlock(s, true);
-    }
-    return true;
-}
 
-bool deleteBlock(STATUS s) {
-    board[s.x][s.y] = 0;
-
-    for(int i = 0; i < 3; i++) {
-        int dx = block[s.type].p[i].x;
-        int dy = block[s.type].p[i].y;
-        int r = s.rotate % block[s.type].rotate;
-        for(int j = 0; j < r; j++) {
-            int nx = dx, ny = dy;
-            dx = ny; dy = -nx;
-        }
-        board[s.x + dx][s.y + dy] = 0;
-    }
-
-    return true;
-}
-
-void showBoard() {
-    for(int x = 1; x <= 10; x++) {
-        for(int y = 1; y <= 20; y++) {
-            BitBlt(hMemDC, (x - 1) * 24, (20 -y) * 24, 24, 24, hBlockDC, 0, board[x][y] * 24, SRCCOPY);
-        }
-    }
-}
-
-bool processInput() {
-    bool ret = false;
-    STATUS n = current;
-    if(GetAsyncKeyState(VK_LEFT)) {
-        n.x--;
-    } else if(GetAsyncKeyState(VK_RIGHT)) {
-        n.x++;
-    } else if(GetAsyncKeyState(VK_UP)) {
-        n.rotate++;
-    } else if(GetAsyncKeyState(VK_DOWN)) {
-        n.y--;
-        ret = true;
-    }
-
-    if(n.x != current.x || n.y != current.y || n.rotate != current.rotate) {
-        deleteBlock(current);
-        if(putBlock(n)) {
-            current = n;
-        } else {
-            putBlock(current);
-        }
-    }
-    
-    return ret;
-}
-
-
-void gameOver() {
-    KillTimer(hMainWindow, 100);
-    for(int x = 1; x <= 10;x++) {
-        for(int y = 1; y <= 20; y++) {
-            if(board[x][y] != 0) {
-                board[x][y] = 1;
-            }
-        }
-    }
-    InvalidateRect(hMainWindow, NULL, false);
-}
-
-void deleteLine() {
-    for(int y = 1; y < 23; y++) {
-        bool flag = true;
-        for(int x = 1;x <= 10; x++) {
-            if(board[x][y] == 0) {
-                flag = false;
-            }
-        }
-        
-        if(flag) {
-            for(int j = y; j < 23; j++) {
-                for(int i = 1; i <= 10; i++) {
-                    board[i][j] = board[i][j + 1];
+    bool isValidMove(int offsetX, int offsetY) {
+        for (int y = 0; y < currentPiece.shape.size(); y++) {
+            for (int x = 0; x < currentPiece.shape[y].size(); x++) {
+                if (currentPiece.shape[y][x]) {
+                    int newX = pieceX + x + offsetX;
+                    int newY = pieceY + y + offsetY;
+                    if (newX < 0 || newX >= WIDTH || newY >= HEIGHT) return false;
+                    if (newY >= 0 && board[newY][newX]) return false;
                 }
             }
-            y--;
+        }
+        return true;
+    }
+
+    void mergePiece() {
+        for (int y = 0; y < currentPiece.shape.size(); y++) {
+            for (int x = 0; x < currentPiece.shape[y].size(); x++) {
+                if (currentPiece.shape[y][x]) {
+                    board[pieceY + y][pieceX + x] = currentPiece.color;
+                }
+            }
         }
     }
-}
 
-void blockDown() {
-    deleteBlock(current);
-    current.y--;
-    if(!putBlock(current)) {
-        current.y++;
-        putBlock(current);
-        
-        deleteLine();
-        
-        current.x = 5;
-        current.y = 21;
-        current.type = random(7) + 1;
-        current.rotate = random(4);
-        if(!putBlock(current)) {
-            gameOver();
+    void clearLines() {
+        for (int y = 0; y < HEIGHT; y++) {
+            bool full = true;
+            for (int x = 0; x < WIDTH; x++) {
+                if (!board[y][x]) full = false;
+            }
+            if (full) {
+                board.erase(board.begin() + y);
+                board.insert(board.begin(), vector<int>(WIDTH, 0));
+                score++;
+            }
         }
     }
-}
 
+    void rotatePiece() {
+        vector<vector<int>> rotatedPiece(currentPiece.shape[0].size(), vector<int>(currentPiece.shape.size()));
+        for (int y = 0; y < currentPiece.shape.size(); y++) {
+            for (int x = 0; x < currentPiece.shape[y].size(); x++) {
+                rotatedPiece[x][currentPiece.shape.size() - 1 - y] = currentPiece.shape[y][x];
+            }
+        }
+        vector<vector<int>> originalShape = currentPiece.shape;
+        currentPiece.shape = rotatedPiece;
+        if (!isValidMove(0, 0)) {
+            currentPiece.shape = originalShape;
+        }
+    }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    switch(msg) {
-        case WM_CREATE: {
-            for(int x = 0; x < 12; x++) {
-                for(int y = 0; y < 25; y++) {
-                    if(x == 0 || x == 11 || y == 0) {
-                        board[x][y] = 1;
-                    } else {
-                        board[x][y] = 0;
+public:
+    Game() : board(HEIGHT, vector<int>(WIDTH, 0)), score(0), gameOver(false), hConsole(GetStdHandle(STD_OUTPUT_HANDLE)) {
+        srand(time(0));
+        spawnPiece();
+    }
+
+    void draw() {
+        system("cls");
+        for (int y = 0; y < HEIGHT; y++) {
+            cout << "|";
+            for (int x = 0; x < WIDTH; x++) {
+                bool isPiece = false;
+                for (int py = 0; py < currentPiece.shape.size(); py++) {
+                    for (int px = 0; px < currentPiece.shape[py].size(); px++) {
+                        if (currentPiece.shape[py][px] && y == pieceY + py && x == pieceX + px) {
+                            isPiece = true;
+                        }
                     }
                 }
-            }
-            
-            current.x = 5;
-            current.y = 21;
-            current.type = random(7) + 1;
-            current.rotate = random(4);
-            putBlock(current);
-
-            HDC hdc = GetDC(hWnd);
-            
-            hMemDC = CreateCompatibleDC(hdc);
-            HBITMAP hBitmap = CreateCompatibleBitmap(hdc, 24 * 10, 24 * 20);
-            hMemPrev = (HBITMAP)SelectObject(hMemDC, hBitmap);
-            
-            hBlockDC = CreateCompatibleDC(hdc);
-            hBitmap = LoadBitmap(hInstance, "BLOCKS");
-            hBlockPrev = (HBITMAP)SelectObject(hBlockDC, hBitmap);
-            
-            // debug
-            BitBlt(hMemDC, 0, 0, 24, 24, hBlockDC, 0, 0, SRCCOPY);
-            
-            ReleaseDC(hWnd, hdc);
-            break;
-        }
-        case WM_TIMER: {
-            static int w = 0;
-            if(w % 2 == 0) {
-                if(processInput()) {
-                    w = 0;
+                if (isPiece) {
+                    SetConsoleTextAttribute(hConsole, currentPiece.color);
+                    cout << "[]";
+                } else if (board[y][x]) {
+                    SetConsoleTextAttribute(hConsole, board[y][x]);
+                    cout << "[]";
+                } else {
+                    cout << "  ";
                 }
+                SetConsoleTextAttribute(hConsole, 15);
             }
-            if(w % 5 == 0) {
-                blockDown();
+            cout << "|\n";
+        }
+        cout << "Score: " << score << endl;
+        if (gameOver) cout << "Game Over! Press R to Restart or Q to Quit" << endl;
+    }
+
+    void update() {
+        if (gameOver) return;
+        if (!isValidMove(0, 1)) {
+            mergePiece();
+            clearLines();
+            spawnPiece();
+            return;
+        }
+        pieceY++;
+    }
+
+    void handleInput() {
+        if (_kbhit()) {
+            switch (_getch()) {
+                case 75: if (isValidMove(-1, 0)) pieceX--; break;
+                case 77: if (isValidMove(1, 0)) pieceX++; break;
+                case 80: if (isValidMove(0, 1)) pieceY++; break;
+                case 72: rotatePiece(); break;
+                case 'r': gameOver = false; board.assign(HEIGHT, vector<int>(WIDTH, 0)); spawnPiece(); break;
+                case 'q': exit(0);
             }
-            w++;
-            
-            InvalidateRect(hWnd, NULL, false);
-            break;
         }
-
-        case WM_PAINT: {
-            showBoard();
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            BitBlt(hdc, 0, 0, 24 * 10, 24 * 20, hMemDC, 0, 0, SRCCOPY);
-            EndPaint(hWnd, &ps);
-            break;
-        }
-        case WM_DESTROY: {
-            HBITMAP hBitmap = (HBITMAP)SelectObject(hMemDC, hMemPrev);
-            DeleteObject(hBitmap);
-            DeleteObject(hMemDC);
-            
-            hBitmap = (HBITMAP)SelectObject(hBlockDC, hBlockPrev);
-            DeleteObject(hBitmap);
-            DeleteObject(hBlockDC);
-            
-            PostQuitMessage(0);
-            break;
-        }
-        default:
-            return DefWindowProc(hWnd, msg, wParam, lParam);
     }
-    return 0;
-}
 
-int WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cmdShow) {
-    hInstance = hInst;
-    WNDCLASSEX wc;
-    static LPCTSTR pClassName = "NicoNicoProgramming2";  // �N���X��
+    bool isGameOver() { return gameOver; }
+};
 
-    wc.cbSize        = sizeof(WNDCLASSEX);               // �\���̃T�C�Y
-    wc.style         = CS_HREDRAW | CS_VREDRAW;          // �N���X�X�^�C��
-    wc.lpfnWndProc   = (WNDPROC)WndProc;
-    wc.cbClsExtra    = 0;                                // �⑫�������u���b�N
-    wc.cbWndExtra    = 0;                                // �@�̃T�C�Y
-    wc.hInstance     = hInst;                            // �C���X�^���X
-    wc.hIcon         = NULL;                             // �A�C�R��
-    wc.hCursor       = LoadCursor(NULL,IDC_ARROW);       // �J�[�\��
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);         // �w�i�F
-    wc.lpszMenuName  = NULL;                             // ���j���[
-    wc.lpszClassName = pClassName;                       // �N���X��
-    wc.hIconSm       = NULL;                             // �������A�C�R��
-
-    if (!RegisterClassEx(&wc)) return FALSE;             // �o�^
-
-    RECT r;
-    r.left = r.top = 0;
-    r.right = 24 * 10;
-    r.bottom = 24 * 20;
-    AdjustWindowRectEx(&r, WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU | WS_CAPTION, false, 0);
-
-    hMainWindow = CreateWindow(pClassName, "Nico Nico Programming2", WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU | WS_CAPTION,
-        CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top,
-        NULL, NULL, hInst, NULL);
-    
-    ShowWindow(hMainWindow, SW_SHOW);
-
-    SetTimer(hMainWindow, 100, 1000 /30, NULL);
-    MSG msg;
-    while(GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+int main() {
+    hideCursor();
+    Game game;
+    while (true) {
+        game.draw();
+        if (game.isGameOver()) {
+            while (true) {
+                char ch = _getch();
+                if (ch == 'r') { game = Game(); break; }
+                if (ch == 'q') exit(0);
+            }
+        }
+        game.handleInput();
+        game.update();
+        Sleep(50);
     }
-    
-    KillTimer(hMainWindow, 100);
-
     return 0;
 }
