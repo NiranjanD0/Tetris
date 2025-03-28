@@ -1,4 +1,4 @@
-# Tetris Console Game 🎮
+# Tetris 🎮
 
 A simple Tetris game built using C++ that runs in the console. Blocks fall, and you must rotate and position them to clear lines and score points! 🏆
 
