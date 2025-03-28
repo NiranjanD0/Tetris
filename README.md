@@ -2,6 +2,11 @@
 
 A simple Tetris game built using C++ that runs in the console. Blocks fall, and you must rotate and position them to clear lines and score points! 🏆
 
+## Screenshots
+<img src="screenshots/game.png" alt="Gameplay" width="500">
+<img src="screenshots/game-over.png" alt="End" width="500">
+
+
 ## Features ✨
 - Classic Tetris gameplay 🎲
 - Smooth movement with arrow keys ⬅️⬇️➡️
